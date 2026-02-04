@@ -42,7 +42,7 @@ out/
   runs/
     20260204T171233Z_ab12cd34/
       scratch/
-        downloads/       # downloaded / copied inputs
+        downloads/       # downloaded/copied inputs
         intermediate/    # intermediate JSON, prompts, raw payloads
         logs/
       outputs/           # final deliverables
@@ -132,7 +132,7 @@ python meteo_cli/cloudia.py --config config.json forecast   --place-id com65116 
 
 ## Example of an Automatically Generated Bulletin
 
-> **Weather Bulletin — Naples (Place ID: com65116)**  
+> **Weather Bulletin — Naples (Place ID: com63049)**  
 > *Valid: next 48–72 hours (local time)*  
 >  
 > **Today & Tonight**  
