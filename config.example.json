@@ -1,0 +1,23 @@
+{
+  "openai": {
+    "model": "gpt-4o",
+    "temperature": 0.6,
+    "max_tokens": 900,
+    "api_key": null
+  },
+  "api": {
+    "base_url": "https://api.meteo.uniparthenope.it",
+    "product": "wrf5",
+    "timezone": "Europe/Rome",
+    "http_timeout_sec": 30
+  },
+  "wordpress": {
+    "enabled": false,
+    "base_url": "https://meteo-dev.uniparthenope.it/wp-json/wp/v2",
+    "user": null,
+    "app_password": null,
+    "category_ids": [
+      25
+    ]
+  }
+}
