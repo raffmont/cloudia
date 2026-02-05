@@ -12,9 +12,9 @@ import logging
 import os
 
 # Local import for config model.
-from cloudia_config import OpenAIConfig
+from cloudia.config import OpenAIConfig
 # Local import for error handling.
-from cloudia_utils import die
+from cloudia.utils import die
 
 # Module-level logger for OpenAI client.
 logger = logging.getLogger(__name__)

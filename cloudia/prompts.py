@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Any, Dict, Tuple
 
 # Local import for timezone class resolution.
-from cloudia_time import get_zoneinfo_class
+from cloudia.time import get_zoneinfo_class
 
 
 def build_synoptic_prompt(features: Dict[str, Any], tz_name: str) -> Tuple[str, str]:

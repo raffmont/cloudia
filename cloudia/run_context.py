@@ -18,7 +18,7 @@ from typing import Any, Dict, Optional
 from dataclasses import dataclass
 
 # Local import for run configuration.
-from cloudia_config import RunConfig
+from cloudia.config import RunConfig
 
 # Module-level logger for run context.
 logger = logging.getLogger(__name__)

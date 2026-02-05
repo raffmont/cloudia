@@ -12,9 +12,9 @@ import os
 from typing import Any, Dict, Optional
 
 # Local import for config model.
-from cloudia_config import AppConfig
+from cloudia.config import AppConfig
 # Local import for request session helper.
-from cloudia_utils import die, make_requests_session
+from cloudia.utils import die, make_requests_session
 
 # Module-level logger for WordPress helper.
 logger = logging.getLogger(__name__)
