@@ -170,7 +170,7 @@ class RunContext:
         if policy == "keep":
             delete = False
         elif policy == "never":
-            delete = True
+            delete = False
         elif policy == "on-success":
             delete = success
         elif policy == "on-error":
@@ -204,7 +204,10 @@ def parse_wrf_time_arg(time_str: str) -> str:
 
 def parse_idate(idate: str) -> datetime:
     """API expects YYYYMMDDZHHMM (UTC)."""
-    return datetime.strptime(idate, "%Y%m%dZ%H%M").replace(tzinfo=timezone.utc)
+    try:
+        return datetime.strptime(idate, "%Y%m%dZ%H%M").replace(tzinfo=timezone.utc)
+    except ValueError as exc:
+        raise ValueError("Expected date format YYYYMMDDZHHMM (e.g., 20251127Z0000).") from exc
 
 
 def compact_markdown(text: str) -> str:
@@ -553,8 +556,17 @@ def cmd_forecast(args: argparse.Namespace, cfg: AppConfig, ctx: RunContext) -> i
     api_base = cfg.api.base_url.rstrip("/")
 
     place_id = args.place_id
-    idate = args.date
-    hours = int(args.hours)
+    try:
+        idate = parse_idate(args.date).strftime("%Y%m%dZ%H%M")
+    except ValueError as exc:
+        die(str(exc))
+
+    try:
+        hours = int(args.hours)
+    except ValueError:
+        die("Forecast hours must be an integer.")
+    if hours <= 0:
+        die("Forecast hours must be greater than zero.")
 
     place_url = f"{api_base}/places/{place_id}"
     ts_url = f"{api_base}/products/{cfg.api.product}/places/{place_id}/timeseries/{idate}"

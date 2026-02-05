@@ -63,7 +63,7 @@ Scratch cleanup is configurable: keep / on-success / on-error / never.
 - Network access for API calls (OpenAI + meteo API)
 
 ### Python dependencies
-See `requirements.txt` in `meteo_cli/`.
+See `requirements.txt` in the repository root.
 
 ---
 
@@ -75,7 +75,7 @@ cd cloudia-fairwinds
 
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r meteo_cli/requirements.txt
+pip install -r requirements.txt
 ```
 
 Environment variables:
@@ -93,20 +93,20 @@ export WP_APP_PASSWORD="your_wp_app_password"
 Copy the example config and adjust as needed:
 
 ```bash
-cp meteo_cli/config.example.json config.json
+cp config.example.json config.json
 ```
 
 Run the full pipeline:
 
 ```bash
-python meteo_cli/cloudia.py --config config.json run   --netcdf /data/wrf/wrfout_d01_2025-10-24_12.nc   --time 2025-10-24_12:00:00   --domain-name "Southern Italy"   --domain-date 2025-10-24T12:00:00+00:00   --place-id com65116   --date 20251127Z0000   --hours 72
+python cloudia.py --config config.json run   --netcdf /data/wrf/wrfout_d01_2025-10-24_12.nc   --time 2025-10-24_12:00:00   --domain-name "Southern Italy"   --domain-date 2025-10-24T12:00:00+00:00   --place-id com65116   --date 20251127Z0000   --hours 72
 ```
 
 Useful debugging flags:
 
 ```bash
-python meteo_cli/cloudia.py --config config.json --keep-scratch run ...
-python meteo_cli/cloudia.py --config config.json --run-id my_debug_run run ...
+python cloudia.py --config config.json --keep-scratch run ...
+python cloudia.py --config config.json --run-id my_debug_run run ...
 ```
 
 ---
@@ -115,17 +115,17 @@ python meteo_cli/cloudia.py --config config.json --run-id my_debug_run run ...
 
 ### Extract only
 ```bash
-python meteo_cli/cloudia.py --config config.json extract   --netcdf wrfout.nc   --time 2025-10-24_12:00:00
+python cloudia.py --config config.json extract   --netcdf wrfout.nc   --time 2025-10-24_12:00:00
 ```
 
 ### Synoptic bulletin from features
 ```bash
-python meteo_cli/cloudia.py --config config.json synoptic   --features out/runs/<RUN_ID>/outputs/features.json
+python cloudia.py --config config.json synoptic   --features out/runs/<RUN_ID>/outputs/features.json
 ```
 
 ### Place-based bulletin
 ```bash
-python meteo_cli/cloudia.py --config config.json forecast   --place-id com65116   --date 20251127Z0000   --hours 48
+python cloudia.py --config config.json forecast   --place-id com65116   --date 20251127Z0000   --hours 48
 ```
 
 ---
