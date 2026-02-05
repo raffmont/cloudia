@@ -10,10 +10,10 @@ import logging
 from pathlib import Path
 
 # Local imports for configuration and commands.
-from cloudia_config import AppConfig
-from cloudia_commands import cmd_extract, cmd_forecast, cmd_run_all, cmd_synoptic
-from cloudia_run_context import RunContext
-from cloudia_utils import die
+from cloudia.config import AppConfig
+from cloudia.commands import cmd_extract, cmd_forecast, cmd_run_all, cmd_synoptic
+from cloudia.run_context import RunContext
+from cloudia.utils import die
 
 # Module-level logger for CLI.
 logger = logging.getLogger(__name__)

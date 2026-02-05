@@ -10,7 +10,7 @@ import importlib
 import importlib.util
 
 # Local import for error handling.
-from cloudia_utils import die
+from cloudia.utils import die
 
 # Module-level logger for timezone utilities.
 logger = logging.getLogger(__name__)

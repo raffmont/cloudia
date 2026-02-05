@@ -7,7 +7,7 @@ from __future__ import annotations
 import sys
 
 # Local import for CLI main.
-from cloudia_cli import main
+from cloudia.cli import main
 
 
 def _run() -> int:
