@@ -6,10 +6,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 # Standard library import for JSON parsing.
 import json
+# Standard library import for JSON parsing failures.
+from json import JSONDecodeError
 # Standard library import for filesystem paths.
 from pathlib import Path
 # Standard library import for optional typing helpers.
 from typing import List, Optional
+
+# Local import for user-friendly CLI failures.
+from cloudia.utils import die
 
 
 @dataclass(frozen=True)
@@ -94,15 +99,37 @@ class AppConfig:
     @staticmethod
     def load(path: Path) -> "AppConfig":
         """Load configuration from a JSON file."""
-        # Read the raw JSON contents.
-        raw = json.loads(path.read_text(encoding="utf-8"))
-        # Build the OpenAI config from JSON.
-        openai = OpenAIConfig(**raw.get("openai", {}))
-        # Build the WordPress config from JSON.
-        wp = WPConfig(**raw.get("wordpress", {}))
-        # Build the API config from JSON.
-        api = APIConfig(**raw.get("api", {}))
-        # Build the run config from JSON.
-        run = RunConfig(**raw.get("run", {}))
+        # Fail early when the config path does not exist.
+        if not path.exists():
+            # Surface the missing path with direct recovery guidance.
+            die(f"Config file not found: {path}")
+        # Fail early when the config path points to a directory.
+        if not path.is_file():
+            # Surface the invalid path type with direct recovery guidance.
+            die(f"Config path is not a file: {path}")
+        # Read and parse the raw JSON contents with friendlier errors.
+        try:
+            # Decode the JSON config as UTF-8 text.
+            raw = json.loads(path.read_text(encoding="utf-8"))
+        except JSONDecodeError as exc:
+            # Report the exact location of malformed JSON.
+            die(f"Invalid JSON in config {path}: line {exc.lineno}, column {exc.colno}: {exc.msg}")
+        # Ensure the top-level JSON payload is an object.
+        if not isinstance(raw, dict):
+            # Explain the expected shape.
+            die("Config JSON must be an object with openai, api, wordpress, and run sections.")
+        # Build each config section with clear validation errors.
+        try:
+            # Build the OpenAI config from JSON.
+            openai = OpenAIConfig(**raw.get("openai", {}))
+            # Build the WordPress config from JSON.
+            wp = WPConfig(**raw.get("wordpress", {}))
+            # Build the API config from JSON.
+            api = APIConfig(**raw.get("api", {}))
+            # Build the run config from JSON.
+            run = RunConfig(**raw.get("run", {}))
+        except TypeError as exc:
+            # Provide a readable message for misspelled or invalid config keys.
+            die(f"Invalid config option: {exc}")
         # Return the aggregated config object.
         return AppConfig(openai=openai, wp=wp, api=api, run=run)

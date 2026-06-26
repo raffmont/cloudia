@@ -6,6 +6,7 @@
 - Use logging instead of print
 - Add line-by-line pedagogical comments
 - Update the markdown documentation if needed.
+- Update all involved documentation whenever behavior, usage, configuration, or developer workflow changes.
 
 ## Testing
 - If adding tests, mention the command used in the final response.

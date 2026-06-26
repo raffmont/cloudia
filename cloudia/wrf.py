@@ -85,12 +85,14 @@ def extract_wrf_features(netcdf_path: Path, time_sel: str) -> Dict[str, Any]:
 
     # Default to the first time index.
     tidx = 0
+    # Track normalized dataset times for validation.
+    norm: List[str] = []
     # Attempt to resolve the desired time index.
     try:
         # Fetch the Times coordinate.
         times = ds["Times"].values
         # Normalize the times to strings.
-        norm: List[str] = []
+        norm = []
         # Iterate through time values to normalize.
         for time in times:
             # Decode bytes to string when needed.
@@ -104,9 +106,17 @@ def extract_wrf_features(netcdf_path: Path, time_sel: str) -> Dict[str, Any]:
         # Use the matching index if found.
         if time_sel in norm:
             tidx = norm.index(time_sel)
-    except Exception:
-        # Keep default time index on any errors.
-        tidx = 0
+        # Fail clearly when the requested time is not in the dataset.
+        elif norm:
+            # Show a compact preview of available times.
+            preview = ", ".join(norm[:5])
+            # Add an ellipsis marker when the dataset has more times.
+            suffix = "..." if len(norm) > 5 else ""
+            # Exit with a clear validation error.
+            die(f"Requested WRF time '{time_sel}' not found. Available times: {preview}{suffix}")
+    except Exception as exc:
+        # Report time-coordinate parsing failures instead of silently using index zero.
+        die(f"Failed reading WRF Times coordinate from {netcdf_path.name}: {exc}")
 
     # Helper to slice by time index when possible.
     def at(var):

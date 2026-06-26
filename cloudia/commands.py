@@ -15,7 +15,10 @@ from shutil import copy2
 # Standard library import for pathlib.
 from pathlib import Path
 # Standard library import for typing helpers.
-from typing import Any, Dict
+from typing import Any, Dict, Optional
+
+# Third-party import for requests error handling.
+import requests
 
 # Local imports for config, run context, and helpers.
 from cloudia.config import AppConfig
@@ -31,10 +34,53 @@ from cloudia.time import get_zoneinfo_class
 logger = logging.getLogger(__name__)
 
 
+def _output_path(ctx: RunContext, filename: Optional[str], default_filename: str) -> Path:
+    """Resolve an output filename safely inside the run outputs directory."""
+    # Use the caller-provided filename or the command default.
+    requested = filename or default_filename
+    # Reject path separators so outputs cannot escape the run outputs folder.
+    if Path(requested).name != requested:
+        # Explain the expected argument shape.
+        die("--output must be a filename, not a path.")
+    # Return the final path inside the outputs directory.
+    return ctx.outputs / requested
+
+
+def _read_json_file(path: Path, label: str) -> Dict[str, Any]:
+    """Read a JSON object from disk with user-friendly failures."""
+    # Fail early when the expected JSON file is missing.
+    if not path.exists():
+        # Include the logical label for command context.
+        die(f"{label} file not found: {path}")
+    # Parse the file and preserve JSON error location.
+    try:
+        # Decode and parse the JSON payload.
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        # Report the exact JSON location.
+        die(f"Invalid JSON in {label} file {path}: line {exc.lineno}, column {exc.colno}: {exc.msg}")
+    # Require an object because prompt builders expect dictionaries.
+    if not isinstance(data, dict):
+        # Explain the expected payload shape.
+        die(f"{label} file must contain a JSON object: {path}")
+    # Return the parsed object.
+    return data
+
+
 def cmd_extract(args: argparse.Namespace, cfg: AppConfig, ctx: RunContext) -> int:
     """Extract synoptic features from a WRF NetCDF file."""
     # Resolve the source NetCDF path.
     netcdf_src = Path(args.netcdf).expanduser().resolve()
+    # Fail early when the NetCDF file is missing.
+    if not netcdf_src.exists():
+        # Provide a direct file-specific error.
+        die(f"NetCDF file not found: {netcdf_src}")
+    # Fail early when the NetCDF argument is not a file.
+    if not netcdf_src.is_file():
+        # Provide a direct file-specific error.
+        die(f"NetCDF path is not a file: {netcdf_src}")
+    # Build the output path inside the run outputs before expensive extraction.
+    out_path = _output_path(ctx, args.output, "features.json")
     # Construct the local copy path in downloads.
     netcdf_local = ctx.downloads / netcdf_src.name
     # Copy the NetCDF file into the run downloads if missing.
@@ -62,8 +108,6 @@ def cmd_extract(args: argparse.Namespace, cfg: AppConfig, ctx: RunContext) -> in
                 # Keep the raw string when parsing fails.
                 features["domain"]["date"] = args.domain_date
 
-    # Build the output path inside the run outputs.
-    out_path = ctx.outputs / (args.output or "features.json")
     # Write an intermediate input description.
     (ctx.intermediate / "extract_input.json").write_text(
         json.dumps({"netcdf": str(netcdf_src), "time": args.time}, indent=2),
@@ -107,8 +151,10 @@ def cmd_synoptic(args: argparse.Namespace, cfg: AppConfig, ctx: RunContext) -> i
     """Generate a synoptic bulletin from extracted features."""
     # Resolve the features path.
     features_path = Path(args.features).expanduser().resolve()
+    # Build the output markdown path before any external API calls.
+    out_path = _output_path(ctx, args.output, "synoptic.md")
     # Load the features JSON payload.
-    features = json.loads(features_path.read_text(encoding="utf-8"))
+    features = _read_json_file(features_path, "features")
 
     # Initialize the OpenAI client.
     client = openai_client(cfg.openai)
@@ -125,8 +171,6 @@ def cmd_synoptic(args: argparse.Namespace, cfg: AppConfig, ctx: RunContext) -> i
     # Normalize markdown content.
     md = compact_markdown(md)
 
-    # Build the output markdown path.
-    out_path = ctx.outputs / (args.output or "synoptic.md")
     # Write the markdown output.
     out_path.write_text(md, encoding="utf-8")
     # Log successful completion.
@@ -158,6 +202,10 @@ def cmd_forecast(args: argparse.Namespace, cfg: AppConfig, ctx: RunContext) -> i
 
     # Extract the place id from args.
     place_id = args.place_id
+    # Build default output filename.
+    default_name = f"forecast_{place_id}.md"
+    # Resolve the output path before any external API calls.
+    out_path = _output_path(ctx, args.output, default_name)
     # Parse the date argument for API usage.
     try:
         idate = parse_idate(args.date).strftime("%Y%m%dZ%H%M")
@@ -165,12 +213,8 @@ def cmd_forecast(args: argparse.Namespace, cfg: AppConfig, ctx: RunContext) -> i
         # Surface a user-friendly error.
         die(str(exc))
 
-    # Parse hours as integer.
-    try:
-        hours = int(args.hours)
-    except ValueError:
-        # Provide a clear error for invalid hours.
-        die("Forecast hours must be an integer.")
+    # Read hours as an integer parsed by argparse.
+    hours = args.hours
     # Enforce a positive forecast horizon.
     if hours <= 0:
         # Provide a clear error for invalid hours.
@@ -182,22 +226,42 @@ def cmd_forecast(args: argparse.Namespace, cfg: AppConfig, ctx: RunContext) -> i
     ts_url = f"{api_base}/products/{cfg.api.product}/places/{place_id}/timeseries/{idate}"
 
     # Fetch place metadata.
-    place_r = session.get(place_url)
+    try:
+        # Perform the place metadata request.
+        place_r = session.get(place_url)
+    except requests.RequestException as exc:
+        # Surface connection and timeout failures clearly.
+        die(f"Failed fetching place info from {place_url}: {exc}")
     # Handle HTTP errors for place lookup.
     if place_r.status_code >= 300:
         # Provide a clear error for API failures.
         die(f"Failed fetching place info ({place_r.status_code}): {place_r.text[:300]}")
     # Parse place response JSON.
-    place = place_r.json()
+    try:
+        # Parse place response JSON.
+        place = place_r.json()
+    except ValueError as exc:
+        # Surface invalid API JSON clearly.
+        die(f"Place API returned invalid JSON: {exc}")
 
     # Fetch timeseries data.
-    ts_r = session.get(ts_url, params={"hours": hours})
+    try:
+        # Perform the timeseries request.
+        ts_r = session.get(ts_url, params={"hours": hours})
+    except requests.RequestException as exc:
+        # Surface connection and timeout failures clearly.
+        die(f"Failed fetching timeseries from {ts_url}: {exc}")
     # Handle HTTP errors for timeseries lookup.
     if ts_r.status_code >= 300:
         # Provide a clear error for API failures.
         die(f"Failed fetching timeseries ({ts_r.status_code}): {ts_r.text[:300]}")
     # Parse timeseries response JSON.
-    timeseries = ts_r.json()
+    try:
+        # Parse timeseries response JSON.
+        timeseries = ts_r.json()
+    except ValueError as exc:
+        # Surface invalid API JSON clearly.
+        die(f"Timeseries API returned invalid JSON: {exc}")
 
     # Persist raw API payloads.
     (ctx.intermediate / "forecast_place.json").write_text(
@@ -225,10 +289,6 @@ def cmd_forecast(args: argparse.Namespace, cfg: AppConfig, ctx: RunContext) -> i
     # Normalize markdown content.
     md = compact_markdown(md)
 
-    # Build default output filename.
-    default_name = f"forecast_{place_id}.md"
-    # Resolve the output path.
-    out_path = ctx.outputs / (args.output or default_name)
     # Write the markdown output.
     out_path.write_text(md, encoding="utf-8")
     # Log successful completion.

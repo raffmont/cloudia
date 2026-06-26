@@ -90,6 +90,8 @@ export WP_APP_PASSWORD="your_wp_app_password"
 
 ## Getting Started
 
+For a more detailed setup walkthrough, see [docs/getting_started.md](docs/getting_started.md).
+
 Copy the example config and adjust as needed:
 
 ```bash
@@ -108,6 +110,12 @@ Useful debugging flags:
 python cloudia.py --config config.json --keep-scratch run ...
 python cloudia.py --config config.json --run-id my_debug_run run ...
 ```
+
+CLI validation notes:
+- `--output` accepts a filename only; generated files are always written inside the run `outputs/` directory.
+- `--hours` must be a positive integer.
+- WRF extraction now fails clearly if the requested `--time` is not present in the NetCDF `Times` coordinate.
+- Config, API, and publishing failures are reported as concise CLI errors instead of raw tracebacks where possible.
 
 ---
 

@@ -19,9 +19,14 @@ from dataclasses import dataclass
 
 # Local import for run configuration.
 from cloudia.config import RunConfig
+# Local import for user-friendly CLI failures.
+from cloudia.utils import die
 
 # Module-level logger for run context.
 logger = logging.getLogger(__name__)
+
+# Supported scratch cleanup policy values.
+VALID_CLEANUP_POLICIES = {"keep", "on-success", "on-error", "never"}
 
 
 def make_run_id(user_run_id: Optional[str] = None) -> str:
@@ -72,6 +77,10 @@ class RunContext:
         run_id = make_run_id(overrides.get("run_id") or cfg.run_id)
         # Normalize the cleanup policy.
         cleanup = (overrides.get("cleanup") or cfg.cleanup or "keep").strip().lower()
+        # Validate cleanup policy before creating run directories.
+        if cleanup not in VALID_CLEANUP_POLICIES:
+            # Fail with the exact accepted values.
+            die(f"Invalid run.cleanup '{cleanup}'. Expected one of: keep, on-success, on-error, never.")
 
         # Build the base path for the run.
         base = runs_root / run_id

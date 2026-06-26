@@ -11,6 +11,9 @@ import os
 # Standard library import for typing helpers.
 from typing import Any, Dict, Optional
 
+# Third-party import for requests error handling.
+import requests
+
 # Local import for config model.
 from cloudia.config import AppConfig
 # Local import for request session helper.
@@ -69,11 +72,19 @@ def wp_create_post(
 
     # Create a requests session with configured timeout.
     session = make_requests_session(cfg.api.http_timeout_sec)
-    # Perform the post creation request.
-    response = session.post(url, json=payload, headers=wp_auth_header(user, pwd))
+    try:
+        # Perform the post creation request.
+        response = session.post(url, json=payload, headers=wp_auth_header(user, pwd))
+    except requests.RequestException as exc:
+        # Surface connection and timeout failures clearly.
+        die(f"WordPress publish request failed for {url}: {exc}")
     # Handle error responses with clear context.
     if response.status_code >= 300:
         # Surface the error status and a preview of the response.
         die(f"WordPress publish failed ({response.status_code}): {response.text[:500]}")
-    # Return the JSON response for downstream usage.
-    return response.json()
+    try:
+        # Return the JSON response for downstream usage.
+        return response.json()
+    except ValueError as exc:
+        # Surface invalid WordPress JSON clearly.
+        die(f"WordPress publish returned invalid JSON: {exc}")
